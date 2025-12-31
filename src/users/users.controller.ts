@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dtos/createuser.dto';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { LoginUserDto } from './dtos/loginuser.dto';
 import { AuthGuard } from './auth.guard';
 
@@ -16,8 +16,18 @@ export class UsersController {
     register(@Body() createUserDto: CreateUserDto) {
         return this.userService.register(createUserDto);
     }
-    
-    
+
+    @ApiOperation({ summary: "Email verification", description: "Verify user's email using token" })
+    @ApiQuery({ name: 'token', required: true, description: 'verification token' })
+    @ApiResponse({ status: 200, description: "Email verified" })
+    @ApiResponse({ status: 400, description: "Token expired" })
+    @ApiResponse({ status: 404, description: "Invalid token" })
+    @Get('verify')
+    async verify(@Query('token') token: string) {
+        //  console.log('verify endpoint hit, token=', token);
+        return this.userService.verifyEmail(token);
+    }
+
     @ApiBearerAuth()
     @ApiOperation({ summary: "Get Loggin User Details", description: "Fetch detail" })
     @ApiParam({ name: "id", description: 'user id', type: Number })
@@ -37,5 +47,5 @@ export class UsersController {
     async login(@Body() loginData: LoginUserDto) {
         return this.userService.login(loginData)
     }
-
+    
 }

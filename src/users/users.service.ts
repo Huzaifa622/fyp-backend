@@ -1,20 +1,21 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Users } from 'src/model/user.entity';
 import { Repository, FindOneOptions } from 'typeorm';
 import { CreateUserDto } from './dtos/createuser.dto';
-import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dtos/loginuser.dto';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import jwt from "jsonwebtoken"
 import { ConfigService } from '@nestjs/config';
+import { MailService } from 'src/common/mail.service';
 @Injectable()
 export class UsersService {
-    constructor(@InjectRepository(Users) private readonly usersRepository: Repository<Users>, private configService: ConfigService) { }
+    constructor(@InjectRepository(Users) private readonly usersRepository: Repository<Users>, private configService: ConfigService, private mailService: MailService) { }
 
 
     async register(createUserDto: CreateUserDto) {
         const { password, ...rest } = createUserDto;
-
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const newUser = this.usersRepository.create({
@@ -22,7 +23,19 @@ export class UsersService {
             password: hashedPassword
         });
 
-        return this.usersRepository.save(newUser);
+        const saved = await this.usersRepository.save(newUser);
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+        saved.verificationTokenHash = tokenHash;
+        saved.verificationTokenExpires = expires;
+        await this.usersRepository.save(saved);
+
+        await this.mailService.sendVerification(saved.email, token);
+
+        return { id: saved.id, email: saved.email };
     }
 
     async findUserById(id: number) {
@@ -40,6 +53,10 @@ export class UsersService {
             throw new UnauthorizedException("Invalid credentials")
         }
 
+        if (!user.isEmailVerified) {
+            throw new UnauthorizedException("Please verify your email before logging in")
+        }
+
         const correctPassword = await bcrypt.compare(password, user.password)
         if (!correctPassword) {
             throw new UnauthorizedException("Invalid credentials")
@@ -48,6 +65,25 @@ export class UsersService {
 
         const token = this.generateJwtToken(email, user.id, user.firstName, user.lastName)
         return { token }
+    }
+
+    async verifyEmail(token: string) {
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        // console.log(tokenHash)
+        const user = await this.usersRepository.findOne({
+            where: { verificationTokenHash: tokenHash }
+        });
+
+        if (!user) throw new NotFoundException('Invalid or expired token');
+        if (!user.verificationTokenExpires || user.verificationTokenExpires < new Date())
+            throw new BadRequestException('Token expired');
+
+        user.isEmailVerified = true;
+        user.verificationTokenHash = null;
+        user.verificationTokenExpires = null;
+        await this.usersRepository.save(user);
+
+        return { ok: true, message: 'Email verified' };
     }
 
     private generateJwtToken(

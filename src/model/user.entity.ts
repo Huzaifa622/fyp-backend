@@ -32,5 +32,13 @@ export class Users {
     })
     lastName: string;
 
+    @Column({ type: 'boolean', default: false })
+    isEmailVerified: boolean;
+
+    @Column({ type: 'varchar', length: 128, nullable: true, default: null })
+    verificationTokenHash?: string | null;
+
+    @Column({ type: 'timestamp', nullable: true, default: null })
+    verificationTokenExpires?: Date | null;
 
 }
