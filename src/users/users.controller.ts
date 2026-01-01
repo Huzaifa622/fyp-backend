@@ -3,7 +3,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dtos/createuser.dto';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { LoginUserDto } from './dtos/loginuser.dto';
-import { AuthGuard } from './auth.guard';
+// import { AuthGuard } from './auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
 
 @Controller('users')
@@ -31,18 +31,18 @@ export class UsersController {
     
     @ApiBearerAuth()
     @ApiOperation({ summary: "Get Profile", description: "get profile" })
-    @UseGuards(AuthGuard)
+    // @UseGuards(AuthGuard)
     @Get("profile")
     getProfile(@GetUser() user: { email: string, userId: number, firstName: string, lastName: string }) {
         return this.userService.getProfile(user.userId);
     }
-    
+
     @ApiBearerAuth()
     @ApiOperation({ summary: "Get Loggin User Details", description: "Fetch detail" })
     @ApiParam({ name: "id", description: 'user id', type: Number })
     @ApiResponse({ status: 200, description: "user found" })
     @ApiResponse({ status: 404, description: "user not found" })
-    @UseGuards(AuthGuard)
+    // @UseGuards(AuthGuard)
     @Get(":id")
     getUserById(@Param('id', ParseIntPipe) id: number) {
         return this.userService.findUserById(id)

@@ -6,9 +6,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const config = new DocumentBuilder()
-    .setTitle('auth service')
+    .setTitle('Skin Disease Detection')
     .setVersion('0.0.1')
-    .setDescription("Auth & Authorization")
+    .setDescription("Skin Disease system")
     .addTag("auth services")
     .addBearerAuth()
     .build();

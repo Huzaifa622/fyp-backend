@@ -7,6 +7,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersController } from './users/users.controller';
 import { UsersModule } from './users/users.module';
+import { GeminiModule } from './gemini/gemini.module';
 import entities from './model';
 
 @Module({
@@ -38,7 +39,8 @@ import entities from './model';
       }),
       inject: [ConfigService]
     }),
-    UsersModule,],
+    UsersModule,
+    GeminiModule,],
   controllers: [AppController],
   providers: [AppService],
 })

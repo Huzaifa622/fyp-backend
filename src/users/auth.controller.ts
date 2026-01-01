@@ -26,9 +26,6 @@ export class AuthController {
     const user = await this.usersService.upsertGoogleUser(payload as any);
     const token = this.usersService.createJwtForUser(user);
 
-    // Set token in response header so frontend can read it and set Authorization header on subsequent requests
-    // res.setHeader('Authorization', `Bearer ${token}`);
-
     return { token };
   }
 }
