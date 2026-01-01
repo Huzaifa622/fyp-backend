@@ -86,6 +86,40 @@ export class UsersService {
         return { ok: true, message: 'Email verified' };
     }
 
+    async getProfile(userId: number){
+        const user = await this.usersRepository.findOne({
+            where: { id: userId },
+            select: ['id', 'email', 'firstName', 'lastName', 'isEmailVerified'],
+        });
+
+        if (!user) throw new NotFoundException('User not found');
+
+        return user;
+    }
+
+    async upsertGoogleUser(payload: { email?: string; given_name?: string; family_name?: string }) {
+        const email = payload.email!;
+        let user = await this.usersRepository.findOne({ where: { email } });
+        if (user) return user;
+
+        const randomPassword = crypto.randomBytes(16).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+        user = this.usersRepository.create({
+            email,
+            password: hashedPassword,
+            firstName: payload.given_name || '',
+            lastName: payload.family_name || '',
+            isEmailVerified: true,
+        });
+
+        return this.usersRepository.save(user);
+    }
+
+    createJwtForUser(user: Users) {
+        return jwt.sign({ email: user.email, userId: user.id, firstName: user.firstName, lastName: user.lastName }, this.configService.get("SECRET")!, { expiresIn: "1h" })
+    }
+
     private generateJwtToken(
         email: string,
         userId: number,

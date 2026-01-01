@@ -4,6 +4,7 @@ import { CreateUserDto } from './dtos/createuser.dto';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { LoginUserDto } from './dtos/loginuser.dto';
 import { AuthGuard } from './auth.guard';
+import { GetUser } from './decorators/get-user.decorator';
 
 @Controller('users')
 export class UsersController {
@@ -27,7 +28,15 @@ export class UsersController {
         //  console.log('verify endpoint hit, token=', token);
         return this.userService.verifyEmail(token);
     }
-
+    
+    @ApiBearerAuth()
+    @ApiOperation({ summary: "Get Profile", description: "get profile" })
+    @UseGuards(AuthGuard)
+    @Get("profile")
+    getProfile(@GetUser() user: { email: string, userId: number, firstName: string, lastName: string }) {
+        return this.userService.getProfile(user.userId);
+    }
+    
     @ApiBearerAuth()
     @ApiOperation({ summary: "Get Loggin User Details", description: "Fetch detail" })
     @ApiParam({ name: "id", description: 'user id', type: Number })
@@ -40,6 +49,7 @@ export class UsersController {
     }
 
 
+
     @ApiOperation({ summary: "Login", description: "User login" })
     @Post('login')
     @ApiResponse({ status: 201, description: "user login successfully" })
@@ -47,5 +57,5 @@ export class UsersController {
     async login(@Body() loginData: LoginUserDto) {
         return this.userService.login(loginData)
     }
-    
+
 }

@@ -6,19 +6,29 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const config = new DocumentBuilder()
-  .setTitle('auth service')
-  .setVersion('0.0.1')
-  .setDescription("Auth & Authorization")
-  .addTag("auth services")
-  .addBearerAuth()
-  .build();
+    .setTitle('auth service')
+    .setVersion('0.0.1')
+    .setDescription("Auth & Authorization")
+    .addTag("auth services")
+    .addBearerAuth()
+    .build();
 
-  const doc = SwaggerModule.createDocument(app,config);
-  SwaggerModule.setup('api',app,doc)
+  const doc = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, doc)
+
+  app.enableCors({
+    origin: process.env.FRONTEND_URL ?? true,
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
+    exposedHeaders: ['Set-Cookie', 'Authorization']
+  })
+
   app.use((req, res, next) => {
-  console.log(new Date().toISOString(), req.method, req.url);
-  next();
-});
+    console.log(new Date().toISOString(), req.method, req.url);
+    next();
+  });
+
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
