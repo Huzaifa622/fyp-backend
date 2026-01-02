@@ -9,12 +9,17 @@ import { UsersController } from './users/users.controller';
 import { UsersModule } from './users/users.module';
 import { GeminiModule } from './gemini/gemini.module';
 import entities from './model';
+import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration]
+    }),
+
+    MulterModule.register({
+      dest: "upload"
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
