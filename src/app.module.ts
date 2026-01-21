@@ -5,14 +5,13 @@ import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersController } from './users/users.controller';
 import { UsersModule } from './users/users.module';
 import { GeminiModule } from './gemini/gemini.module';
 import entities from './model';
 import { MulterModule } from '@nestjs/platform-express';
-import { DoctorController } from './doctor/doctor.controller';
-import { DoctorService } from './doctor/doctor.service';
 import { DoctorModule } from './doctor/doctor.module';
+import { AppointmentModule } from './appointment/appointment.module';
+
 
 @Module({
   imports: [
@@ -49,7 +48,9 @@ import { DoctorModule } from './doctor/doctor.module';
     }),
     UsersModule,
     GeminiModule,
-    DoctorModule,],
+    DoctorModule,
+    AppointmentModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

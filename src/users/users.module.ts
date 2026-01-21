@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,14 +16,18 @@ import { AuthController } from './auth.controller';
 import { AuthMiddleware } from 'src/middleware/auth.middleware';
 
 @Module({
-  imports: [ConfigModule, JwtModule.registerAsync({
-    imports: [ConfigModule],
-    useFactory: (configService: ConfigService) => ({
-      secret: configService.get("SECRET"),
-      signOptions: { expiresIn: "1h" }
+  imports: [
+    ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get('SECRET'),
+        signOptions: { expiresIn: '1h' },
+      }),
+      inject: [ConfigService],
     }),
-    inject: [ConfigService]
-  }), TypeOrmModule.forFeature([Users])],
+    TypeOrmModule.forFeature([Users]),
+  ],
   controllers: [UsersController, AuthController],
   providers: [UsersService, MailService],
 })
@@ -29,6 +38,7 @@ export class UsersModule implements NestModule {
       .exclude(
         { path: 'users/register', method: RequestMethod.POST },
         { path: 'users/login', method: RequestMethod.POST },
+        { path: 'users/verify', method: RequestMethod.GET },
       )
       .forRoutes(UsersController);
   }

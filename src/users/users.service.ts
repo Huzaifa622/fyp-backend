@@ -116,9 +116,9 @@ export class UsersService {
         return this.usersRepository.save(user);
     }
 
-    // createJwtForUser(user: Users) {
-    //     return jwt.sign({ email: user.email, userId: user.id, firstName: user.firstName, lastName: user.lastName }, this.configService.get("SECRET")!, { expiresIn: "1h" })
-    // }
+    createJwtForUser(user: Users) {
+        return jwt.sign({ email: user.email, userId: user.id, firstName: user.firstName, lastName: user.lastName }, this.configService.get("SECRET")!, { expiresIn: "1h" })
+    }
 
     private generateJwtToken(
         email: string,
