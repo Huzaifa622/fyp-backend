@@ -31,6 +31,13 @@ export class Users {
         default: ''
     })
     lastName: string;
+    
+    @Column({
+        type: 'varchar',
+        default: 'patient'
+    })
+    role: string;
+
 
     @Column({ type: 'boolean', default: false })
     isEmailVerified: boolean;

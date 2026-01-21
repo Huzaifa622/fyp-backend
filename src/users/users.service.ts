@@ -27,7 +27,7 @@ export class UsersService {
 
         const token = crypto.randomBytes(32).toString('hex');
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
         saved.verificationTokenHash = tokenHash;
         saved.verificationTokenExpires = expires;
@@ -63,7 +63,7 @@ export class UsersService {
         }
 
 
-        const token = this.generateJwtToken(email, user.id, user.firstName, user.lastName)
+        const token = this.generateJwtToken(email, user.id, user.firstName, user.lastName , user.role)
         return { token }
     }
 
@@ -116,16 +116,17 @@ export class UsersService {
         return this.usersRepository.save(user);
     }
 
-    createJwtForUser(user: Users) {
-        return jwt.sign({ email: user.email, userId: user.id, firstName: user.firstName, lastName: user.lastName }, this.configService.get("SECRET")!, { expiresIn: "1h" })
-    }
+    // createJwtForUser(user: Users) {
+    //     return jwt.sign({ email: user.email, userId: user.id, firstName: user.firstName, lastName: user.lastName }, this.configService.get("SECRET")!, { expiresIn: "1h" })
+    // }
 
     private generateJwtToken(
         email: string,
         userId: number,
         firstName: string,
-        lastName: string
+        lastName: string,
+        role:string
     ) {
-        return jwt.sign({ email, userId, firstName, lastName }, this.configService.get("SECRET")!, { expiresIn: "1h" })
+        return jwt.sign({ email, userId, firstName, lastName,role }, this.configService.get("SECRET")!, { expiresIn: "1h" })
     }
 }

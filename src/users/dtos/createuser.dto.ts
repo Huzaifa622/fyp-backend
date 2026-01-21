@@ -10,6 +10,9 @@ export class CreateUserDto {
     password: string;
 
     @IsNotEmpty()
+    role: "patient" | "admin" | "doctor";
+
+    @IsNotEmpty()
     firstName: string;
 
     @IsNotEmpty()
