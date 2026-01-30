@@ -25,7 +25,6 @@ export class UsersController {
     @ApiResponse({ status: 404, description: "Invalid token" })
     @Get('verify')
     async verify(@Query('token') token: string) {
-        //  console.log('verify endpoint hit, token=', token);
         return this.userService.verifyEmail(token);
     }
     

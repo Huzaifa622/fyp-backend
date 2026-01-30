@@ -43,7 +43,7 @@ export class Appointment {
   @JoinColumn({ name: 'doctor_id' })
   doctor: Doctors;
 
-  @ManyToOne(() => Users)
+  @ManyToOne(() => Patients)
   @JoinColumn({ name: 'patient_id' })
   patient: Patients;
 

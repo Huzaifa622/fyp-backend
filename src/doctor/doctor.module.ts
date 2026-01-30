@@ -27,7 +27,7 @@ import { TimeSlots } from 'src/model/time-slot.entity';
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Doctors, TimeSlots]),
+    TypeOrmModule.forFeature([Doctors, TimeSlots, Users]),
   ],
   controllers: [DoctorController],
   providers: [DoctorService],

@@ -1,13 +1,8 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { DoctorTimeSlotDto } from './time-slot-dto';
 
 export class OnBoardingDoctorDto {
-    @IsNotEmpty()
-    @IsString()
-    firstName: string;
-
-    @IsNotEmpty()
-    @IsString()
-    lastName: string;
 
     @IsNotEmpty()
     licenseNumber: string;
@@ -15,8 +10,8 @@ export class OnBoardingDoctorDto {
     @IsNumber()
     experienceYears: number;
 
-    @IsNotEmpty()
-    specializationId: number;
+    // @IsNotEmpty()
+    // specializationId: number;
 
     @IsNumber()
     consultationFee: number;
@@ -26,4 +21,9 @@ export class OnBoardingDoctorDto {
 
     @IsOptional()
     clinicAddress?: string;
+
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => DoctorTimeSlotDto)
+    timeSlots: DoctorTimeSlotDto[];
 }

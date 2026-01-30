@@ -6,22 +6,23 @@ import configuration from './config/configuration';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
-import { GeminiModule } from './gemini/gemini.module';
 import entities from './model';
 import { MulterModule } from '@nestjs/platform-express';
 import { DoctorModule } from './doctor/doctor.module';
 import { AppointmentModule } from './appointment/appointment.module';
-
+import { PatientModule } from './patient/patient.module';
+import { CommonModule } from './common/common.module';
+import { HfModule } from './hf/hf.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [configuration]
+      load: [configuration],
     }),
 
     MulterModule.register({
-      dest: "upload"
+      dest: 'upload',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -37,21 +38,25 @@ import { AppointmentModule } from './appointment/appointment.module';
         keepConnectionAlive: true,
         timezone: 'UTC',
         ssl: configService.get('database.ssl'),
-        extra: configService.get('database.ssl') ? {
-          ssl: {
-            rejectUnauthorized: false
-          }
-        } : null,
-        autoLoadEntities: true
+        extra: configService.get('database.ssl')
+          ? {
+              ssl: {
+                rejectUnauthorized: false,
+              },
+            }
+          : null,
+        autoLoadEntities: true,
       }),
-      inject: [ConfigService]
+      inject: [ConfigService],
     }),
     UsersModule,
-    GeminiModule,
     DoctorModule,
     AppointmentModule,
+    PatientModule,
+    CommonModule,
+    HfModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
