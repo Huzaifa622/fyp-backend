@@ -16,7 +16,11 @@ export class HfService {
   async generateReport(
     description: string,
     imageUrls: string[],
-  ): Promise<string> {
+  ): Promise<{
+    content: string;
+    diseaseName: string;
+    confidenceScore: string;
+  }> {
     if (!this.hfApiToken) {
       throw new InternalServerErrorException('HF_API_TOKEN is not configured');
     }
@@ -37,7 +41,7 @@ export class HfService {
                 1. Result Limit: Approximately 300 words.
                 2. Structure:
                   - Disease Name: [Name]
-                  - Confidence Score
+                  - Confidence Score in %
                   - Detailed Report: [Diagnosis, Severity, and Recommendations]
                 3. Strictly maintain professional medical tone.`,
             },
@@ -66,10 +70,21 @@ export class HfService {
       });
 
       // OpenAI format response
-      return (
+      const content =
         response.data?.choices?.[0]?.message?.content ||
-        JSON.stringify(response.data)
-      );
+        JSON.stringify(response.data);
+
+      // Parse fields using Regex
+      const diseaseMatch = content.match(/Disease Name:\s*(.+)/i);
+      const confidenceMatch = content.match(/Confidence Score:\s*(.+)/i);
+
+      return {
+        content,
+        diseaseName: diseaseMatch ? diseaseMatch[1].trim() : 'Unknown',
+        confidenceScore: confidenceMatch
+          ? confidenceMatch[1].trim()
+          : 'Unknown',
+      };
     } catch (error) {
       console.error(
         'Error integrating with Hugging Face:',

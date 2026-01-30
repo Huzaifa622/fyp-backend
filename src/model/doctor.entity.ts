@@ -19,7 +19,6 @@ export class Doctors {
   })
   id: number;
 
-
   @OneToOne(() => Users, {
     eager: true,
   })
@@ -57,9 +56,10 @@ export class Doctors {
 
   @Column({
     name: 'clinic_address',
+    type: 'text',
     nullable: true,
   })
-  clinicAddress: string;
+  clinicAddress: string | null;
 
   @Column({
     type: 'float',
@@ -82,10 +82,10 @@ export class Doctors {
   isVerified: boolean;
 
   @Column({ name: 'degree_path', type: 'text', nullable: true })
-  degreePath: string;
+  degreePath: string | null;
 
   @Column({ name: 'certificate_path', type: 'text', nullable: true })
-  certificatePath: string;
+  certificatePath: string | null;
 
   @OneToMany(() => TimeSlots, (slot) => slot.doctor, {
     cascade: true,

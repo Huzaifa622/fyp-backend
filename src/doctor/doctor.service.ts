@@ -8,6 +8,7 @@ import { CreateTimeSlotDto } from './dtos/create-time-slot.dto';
 import { OnBoardingDoctorDto } from './dtos/onboarding-doctor.dto';
 
 import { Users } from 'src/model/user.entity';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class DoctorService {
@@ -18,6 +19,7 @@ export class DoctorService {
     @InjectRepository(Users)
     private readonly userRepo: Repository<Users>,
     private configService: ConfigService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async onboard(
@@ -46,18 +48,45 @@ export class DoctorService {
     // user.lastName = dto.lastName;
     // await this.userRepo.save(user);
 
+    const degreeUpload = await this.cloudinaryService.uploadFile(
+      files.degree?.[0]!,
+    );
+
+    let certificateUpload: any;
+    if (files.certificate?.[0]) {
+      certificateUpload = await this.cloudinaryService.uploadFile(
+        files.certificate?.[0]!,
+      );
+    }
+
+    // Parse timeSlots if it comes as a JSON string from multipart/form-data
+    let timeSlots = dto.timeSlots;
+    if (typeof timeSlots === 'string') {
+      try {
+        timeSlots = JSON.parse(timeSlots);
+      } catch (error) {
+        throw new BadRequestException('Invalid timeSlots format');
+      }
+    }
+
+    if (!Array.isArray(timeSlots)) {
+      throw new BadRequestException('timeSlots must be an array');
+    }
+
     const doctor = this.doctorRepo.create({
       licenseNumber: dto.licenseNumber,
       experienceYears: dto.experienceYears,
       consultationFee: dto.consultationFee,
       bio: dto.bio,
       clinicAddress: dto.clinicAddress,
-      user: { id: userId },
-      isVerified: false, // Explicitly false until admin verifies
-      degreePath: files.degree?.[0]?.path,
-      certificatePath: files.certificate?.[0]?.path,
+      user: user,
+      isVerified: false,
+      degreePath: (degreeUpload as any).secure_url,
+      certificatePath: certificateUpload
+        ? (certificateUpload as any).secure_url
+        : null,
 
-      timeSlots: dto.timeSlots.map((slot) => ({
+      timeSlots: timeSlots.map((slot) => ({
         date: new Date(slot.date),
         startTime: new Date(slot.startTime),
         endTime: new Date(slot.endTime),
@@ -88,25 +117,43 @@ export class DoctorService {
     return this.doctorRepo.save(doctor);
   }
 
-  async getDoctorTimeSlots(doctorId: number) {
-    const today = new Date();
-    // Reset time to 00:00:00 for strict date matching if needed, or pass date string.
-    // TypeORM handled local date vs UTC carefully.
-    // Assuming 'date' column is stored as 'YYYY-MM-DD'.
+  private async ensureDoctorOnboarded(userId: number) {
+    const doctor = await this.doctorRepo.findOne({
+      where: { user: { id: userId } },
+    });
 
-    // Simplest way: Filter by date range or specific date string.
-    // Let's rely on finding slots where date >= today (or strictly today as requested).
-    // Prompt: "date always current date means patient see doctor all current date time slot" -> strictly TODAY.
+    if (!doctor) {
+      throw new BadRequestException(
+        'You must complete doctor onboarding before accessing this feature',
+      );
+    }
 
-    const todayStr = today.toISOString().split('T')[0];
+    return doctor;
+  }
 
-    return this.timeSlotRepo
-      .createQueryBuilder('slot')
-      .where('slot.doctor_id = :doctorId', { doctorId })
-      .andWhere('slot.is_booked = :isBooked', { isBooked: false })
-      .andWhere('slot.date = :today', { today: todayStr })
-      .orderBy('slot.start_time', 'ASC')
-      .getMany();
+  async getDoctorTimeSlots(userId: number) {
+    // Ensure doctor is onboarded before getting time slots
+    const doctor = await this.ensureDoctorOnboarded(userId);
+
+    return this.timeSlotRepo.find({
+      where: { doctor: { id: doctor.id } },
+      order: { startTime: 'ASC' },
+    });
+  }
+
+  async addTimeSlots(userId: number, dto: CreateTimeSlotDto) {
+    // Ensure doctor is onboarded before adding time slots
+    const doctor = await this.ensureDoctorOnboarded(userId);
+
+    const timeSlot = this.timeSlotRepo.create({
+      doctor: { id: doctor.id },
+      date: new Date(dto.date),
+      startTime: new Date(dto.startTime),
+      endTime: new Date(dto.endTime),
+      isBooked: false,
+    });
+
+    return this.timeSlotRepo.save(timeSlot);
   }
 
   async getAllDoctors() {

@@ -1,29 +1,33 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { DoctorTimeSlotDto } from './time-slot-dto';
 
 export class OnBoardingDoctorDto {
+  @IsNotEmpty()
+  licenseNumber: string;
 
-    @IsNotEmpty()
-    licenseNumber: string;
+  @IsNumber()
+  experienceYears: number;
 
-    @IsNumber()
-    experienceYears: number;
+  // @IsNotEmpty()
+  // specializationId: number;
 
-    // @IsNotEmpty()
-    // specializationId: number;
+  @IsNumber()
+  consultationFee: number;
 
-    @IsNumber()
-    consultationFee: number;
+  @IsOptional()
+  bio?: string;
 
-    @IsOptional()
-    bio?: string;
+  @IsOptional()
+  clinicAddress?: string;
 
-    @IsOptional()
-    clinicAddress?: string;
-
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => DoctorTimeSlotDto)
-    timeSlots: DoctorTimeSlotDto[];
+  // Can be sent as JSON string via form-data or as array
+  timeSlots: DoctorTimeSlotDto[] | string;
 }

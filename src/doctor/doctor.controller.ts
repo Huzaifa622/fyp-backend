@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiConsumes,
   ApiOperation,
   ApiResponse,
@@ -23,6 +24,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { OnBoardingDoctorDto } from './dtos/onboarding-doctor.dto';
+import { CreateTimeSlotDto } from './dtos/create-time-slot.dto';
 import { DoctorService } from './doctor.service';
 import { GetUser } from 'src/users/decorators/get-user.decorator';
 import { AdminGuard } from 'src/common/guards/admin.guard';
@@ -77,6 +79,82 @@ export class DoctorController {
       { name: 'certificate', maxCount: 1 },
     ]),
   )
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: [
+        'licenseNumber',
+        'experienceYears',
+        'consultationFee',
+        'timeSlots',
+        'degree',
+      ],
+      properties: {
+        licenseNumber: {
+          type: 'string',
+          description: 'Doctor license number (must be unique)',
+          example: 'DOC-12345',
+        },
+        experienceYears: {
+          type: 'number',
+          description: 'Years of medical experience',
+          example: 5,
+        },
+        consultationFee: {
+          type: 'number',
+          description: 'Consultation fee in currency units',
+          example: 1500,
+        },
+        bio: {
+          type: 'string',
+          description: 'Doctor biography (optional)',
+          example: 'Experienced cardiologist specializing in heart diseases',
+        },
+        clinicAddress: {
+          type: 'string',
+          description: 'Clinic address (optional)',
+          example: '123 Medical Plaza, Karachi',
+        },
+        timeSlots: {
+          type: 'array',
+          description: 'Array of available time slots',
+          items: {
+            type: 'object',
+            properties: {
+              date: {
+                type: 'string',
+                format: 'date',
+                description: 'Date in YYYY-MM-DD format',
+                example: '2026-02-01',
+              },
+              startTime: {
+                type: 'string',
+                format: 'date-time',
+                description: 'Start time as ISO timestamp',
+                example: '2026-02-01T09:00:00.000Z',
+              },
+              endTime: {
+                type: 'string',
+                format: 'date-time',
+                description: 'End time as ISO timestamp',
+                example: '2026-02-01T17:00:00.000Z',
+              },
+            },
+          },
+        },
+        degree: {
+          type: 'string',
+          format: 'binary',
+          description: 'Degree certificate image file (required)',
+        },
+        certificate: {
+          type: 'string',
+          format: 'binary',
+          description: 'Medical certificate image file (optional)',
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 201, description: 'Doctor successfully onboarded' })
   @ApiResponse({ status: 400, description: 'Doctor already onboarded' })
   onboardDoctor(
@@ -101,20 +179,52 @@ export class DoctorController {
     return this.doctorService.onboard(user.userId, dto, files);
   }
 
-  // @Post('/slots')
-  // @ApiBearerAuth()
-  // @ApiOperation({ summary: 'Add a time slot' })
-  // @ApiResponse({ status: 201, description: 'Time slot created' })
-  // createTimeSlot(
-  //   @GetUser() user: { userId: number },
-  //   @Body() dto: CreateTimeSlotDto,
-  // ) {
-  //   return this.doctorService.createTimeSlot(user.userId, dto);
-  // }
+  @Post('/slots')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add time slots to your doctor profile' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['date', 'startTime', 'endTime'],
+      properties: {
+        date: {
+          type: 'string',
+          format: 'date',
+          description: 'Date in YYYY-MM-DD format',
+          example: '2026-02-01',
+        },
+        startTime: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Start time as ISO timestamp',
+          example: '2026-02-01T09:00:00.000Z',
+        },
+        endTime: {
+          type: 'string',
+          format: 'date-time',
+          description: 'End time as ISO timestamp',
+          example: '2026-02-01T17:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Time slot added successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Doctor not onboarded or invalid data',
+  })
+  createTimeSlot(
+    @GetUser() user: { userId: number },
+    @Body() dto: CreateTimeSlotDto,
+  ) {
+    return this.doctorService.addTimeSlots(user.userId, dto);
+  }
 
   @Get('/:id/slots')
-  @ApiOperation({ summary: 'Get all time slots for a doctor' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all time slots for your doctor profile' })
   @ApiResponse({ status: 200, description: 'Return all time slots' })
+  @ApiResponse({ status: 400, description: 'Doctor not onboarded' })
   getDoctorTimeSlots(@GetUser() user: { userId: number }) {
     return this.doctorService.getDoctorTimeSlots(user.userId);
   }

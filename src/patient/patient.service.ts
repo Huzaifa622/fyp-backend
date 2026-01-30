@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateAIReportDto } from './dtos/create-ai-report.dto';
 import { Repository } from 'typeorm';
@@ -25,27 +30,27 @@ export class PatientService {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  // ... (createProfile remains same)
+  private async ensurePatientOnboarded(userId: number) {
+    const patient = await this.patientRepo.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!patient) {
+      throw new NotFoundException(
+        'You must complete patient onboarding before accessing this feature',
+      );
+    }
+
+    return patient;
+  }
 
   async generateAIReport(
     userId: number,
     dto: CreateAIReportDto,
     images: Array<Express.Multer.File>,
   ) {
-    // 1. Find or create patient profile
-    let patient = await this.patientRepo.findOne({
-      where: { user: { id: userId } },
-    });
-
-    if (!patient) {
-      const user = await this.userRepo.findOne({ where: { id: userId } });
-      if (!user) throw new NotFoundException('User not found');
-
-      patient = this.patientRepo.create({
-        user: user,
-      });
-      await this.patientRepo.save(patient);
-    }
+    // Ensure patient is onboarded before generating report
+    const patient = await this.ensurePatientOnboarded(userId);
 
     const uploadPromises = images.map((img) =>
       this.cloudinaryService.uploadFile(img),
@@ -53,16 +58,18 @@ export class PatientService {
     const uploadResults = await Promise.all(uploadPromises);
     const imageUrls = uploadResults.map((res) => (res as any).secure_url);
 
-    // const imagesBase64 = images.map((image) => image.buffer.toString('base64'));
-
-    const aiResponse = await this.hfService.generateReport(
-      dto.description,
-      imageUrls,
-    );
+    // 3. Call Hugging Face Service
+    const { content, diseaseName, confidenceScore } =
+      await this.hfService.generateReport(
+        dto.description,
+        imageUrls, // Pass URLs, not Base64 (HfService was updated to accept URLs in previous steps)
+      );
 
     // 4. Save Report
     const report = this.reportRepo.create({
-      aiResponse,
+      aiResponse: content,
+      diseaseName,
+      confidenceScore,
       description: dto.description,
       imagePaths: imageUrls,
       patient,
@@ -94,5 +101,13 @@ export class PatientService {
     // if (dto.address) patient.address = dto.address;
 
     return this.patientRepo.save(patient);
+  }
+
+  async getMyReports(userId: number) {
+    const patient = await this.ensurePatientOnboarded(userId);
+    return this.reportRepo.find({
+      where: { patient: { id: patient.id } },
+      order: { createdAt: 'DESC' },
+    });
   }
 }

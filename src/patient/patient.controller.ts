@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   Req,
   UploadedFiles,
@@ -11,6 +12,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiResponse,
   ApiTags,
   ApiBearerAuth,
 } from '@nestjs/swagger';
@@ -20,6 +22,7 @@ import { PatientService } from './patient.service';
 // Removed diskStorage to use MemoryStorage for Cloudinary
 
 import { CreatePatientProfileDto } from './dtos/create-patient-profile.dto';
+import { GetUser } from 'src/users/decorators/get-user.decorator';
 
 @ApiTags('Patient')
 @ApiBearerAuth() // Assuming global auth or applied via middleware
@@ -54,13 +57,25 @@ export class PatientController {
       },
     },
   })
+  @ApiResponse({ status: 201, description: 'Report generated successfully' })
+  @ApiResponse({ status: 404, description: 'Patient not onboarded' })
   @UseInterceptors(FilesInterceptor('images', 5))
   async generateReport(
-    @Req() req: any,
+    @GetUser() user: { userId: number },
     @Body() dto: CreateAIReportDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
   ) {
-    const userId = req['user']?.userId || req['user']?.id;
-    return this.patientService.generateAIReport(userId, dto, images);
+    return this.patientService.generateAIReport(user.userId, dto, images);
+  }
+
+  @Get('/reports')
+  @ApiOperation({ summary: 'Get all AI generated reports for the patient' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns list of AI generated reports',
+  })
+  @ApiResponse({ status: 404, description: 'Patient not onboarded' })
+  async getMyReports(@GetUser() user: { userId: number }) {
+    return this.patientService.getMyReports(user.userId);
   }
 }

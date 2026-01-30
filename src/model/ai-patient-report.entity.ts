@@ -20,6 +20,12 @@ export class AIPatientGeneratedReport {
   @Column({ type: 'text', name: 'ai_response' })
   aiResponse: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  diseaseName: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  confidenceScore: string;
+
   @Column({ type: 'text', array: true, default: [] })
   imagePaths: string[];
 
