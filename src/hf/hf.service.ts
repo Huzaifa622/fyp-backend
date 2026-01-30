@@ -15,7 +15,7 @@ export class HfService {
 
   async generateReport(
     description: string,
-    imagesBase64: string[],
+    imageUrls: string[],
   ): Promise<string> {
     if (!this.hfApiToken) {
       throw new InternalServerErrorException('HF_API_TOKEN is not configured');
@@ -31,12 +31,20 @@ export class HfService {
           content: [
             {
               type: 'text',
-              text: `Patient Description: ${description}. Please analyze the attached skin condition images and provide a detailed report including potential diagnosis, severity, and recommendations.`,
+              text: `Patient Description: ${description}. Please analyze the attached skin condition images and provide a detailed report. 
+                
+                Requirements:
+                1. Result Limit: Approximately 300 words.
+                2. Structure:
+                  - Disease Name: [Name]
+                  - Confidence Score
+                  - Detailed Report: [Diagnosis, Severity, and Recommendations]
+                3. Strictly maintain professional medical tone.`,
             },
-            ...imagesBase64.map((img) => ({
+            ...imageUrls.map((img) => ({
               type: 'image_url',
               image_url: {
-                url: `data:image/jpeg;base64,${img}`,
+                url: img,
               },
             })),
           ],
@@ -46,7 +54,7 @@ export class HfService {
       const payload = {
         model: 'Qwen/Qwen2.5-VL-7B-Instruct',
         messages: messages,
-        max_tokens: 500,
+        max_tokens: 1000,
         stream: false,
       };
 

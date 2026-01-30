@@ -127,7 +127,7 @@ export class AppointmentService {
     );
 
     return savedAppointment;
-    return savedAppointment;
+
   }
 
   async cancelAppointment(userId: number, appointmentId: number) {

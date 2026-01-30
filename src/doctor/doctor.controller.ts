@@ -72,24 +72,10 @@ export class DoctorController {
   @ApiOperation({ summary: 'Onboard a new doctor' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'degree', maxCount: 1 },
-        { name: 'certificate', maxCount: 1 },
-      ],
-      {
-        storage: diskStorage({
-          destination: './upload',
-          filename: (req, file, cb) => {
-            const randomName = Array(32)
-              .fill(null)
-              .map(() => Math.round(Math.random() * 16).toString(16))
-              .join('');
-            cb(null, `${randomName}${extname(file.originalname)}`);
-          },
-        }),
-      },
-    ),
+    FileFieldsInterceptor([
+      { name: 'degree', maxCount: 1 },
+      { name: 'certificate', maxCount: 1 },
+    ]),
   )
   @ApiResponse({ status: 201, description: 'Doctor successfully onboarded' })
   @ApiResponse({ status: 400, description: 'Doctor already onboarded' })

@@ -16,8 +16,11 @@ import { Doctors } from 'src/model/doctor.entity';
 
 import { TimeSlots } from 'src/model/time-slot.entity';
 
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
+
 @Module({
   imports: [
+    CloudinaryModule,
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

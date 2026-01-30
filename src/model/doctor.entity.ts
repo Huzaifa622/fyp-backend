@@ -19,9 +19,7 @@ export class Doctors {
   })
   id: number;
 
-  /**
-   * One doctor = one user
-   */
+
   @OneToOne(() => Users, {
     eager: true,
   })

@@ -14,6 +14,8 @@ import * as crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from 'src/common/mail.service';
+import { Patients } from 'src/model/patient.entity';
+import { Doctors } from 'src/model/doctor.entity';
 @Injectable()
 export class UsersService {
   constructor(
@@ -21,6 +23,10 @@ export class UsersService {
     private readonly usersRepository: Repository<Users>,
     private configService: ConfigService,
     private mailService: MailService,
+    @InjectRepository(Patients)
+    private readonly patientRepo: Repository<Patients>,
+    @InjectRepository(Doctors)
+    private readonly doctorRepo: Repository<Doctors>,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
@@ -65,7 +71,19 @@ export class UsersService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const resendToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(resendToken)
+      .digest('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    user.verificationTokenHash = tokenHash;
+    user.verificationTokenExpires = expires;
+    await this.usersRepository.save(user);
+
     if (!user.isEmailVerified) {
+      await this.mailService.sendVerification(user.email, resendToken);
       throw new UnauthorizedException(
         'Please verify your email before logging in',
       );
@@ -76,6 +94,22 @@ export class UsersService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Check onboarding status
+    let isOnboarded = false;
+    if (user.role === 'patient') {
+      const patient = await this.patientRepo.findOne({
+        where: { user: { id: user.id } },
+      });
+      isOnboarded = !!patient;
+    } else if (user.role === 'doctor') {
+      const doctor = await this.doctorRepo.findOne({
+        where: { user: { id: user.id } },
+      });
+      isOnboarded = !!doctor;
+    } else if (user.role === 'admin') {
+      isOnboarded = true;
+    }
+
     const token = this.generateJwtToken(
       email,
       user.id,
@@ -83,7 +117,7 @@ export class UsersService {
       user.lastName,
       user.role,
     );
-    return { token };
+    return { token, isOnboarded, role: user.role };
   }
 
   async verifyEmail(token: string) {

@@ -14,6 +14,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailService } from 'src/common/mail.service';
 import { AuthController } from './auth.controller';
 import { AuthMiddleware } from 'src/middleware/auth.middleware';
+import { Doctors } from 'src/model/doctor.entity';
+import { Patients } from 'src/model/patient.entity';
 
 @Module({
   imports: [
@@ -26,7 +28,7 @@ import { AuthMiddleware } from 'src/middleware/auth.middleware';
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Users]),
+    TypeOrmModule.forFeature([Users, Doctors, Patients]),
   ],
   controllers: [UsersController, AuthController],
   providers: [UsersService, MailService],

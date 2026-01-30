@@ -7,11 +7,13 @@ import { AIPatientGeneratedReport } from 'src/model/ai-patient-report.entity';
 import { Users } from 'src/model/user.entity';
 import { AuthMiddleware } from 'src/middleware/auth.middleware';
 import { HfModule } from 'src/hf/hf.module';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Patients, AIPatientGeneratedReport, Users]),
     HfModule,
+    CloudinaryModule,
   ],
   controllers: [PatientController],
   providers: [PatientService],
