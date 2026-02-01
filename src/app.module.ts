@@ -26,27 +26,36 @@ import { HfModule } from './hf/hf.module';
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('database.host'),
-        port: +configService.get<number>('database.port')!,
-        username: configService.get('database.username'),
-        password: configService.get('database.password'),
-        database: configService.get('database.name'),
-        entities: entities,
-        synchronize: true, // Don't use this option for prod mode
-        keepConnectionAlive: true,
-        timezone: 'UTC',
-        ssl: configService.get('database.ssl'),
-        extra: configService.get('database.ssl')
-          ? {
-              ssl: {
-                rejectUnauthorized: false,
-              },
-            }
-          : null,
-        autoLoadEntities: true,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const url = configService.get<string>('database.url');
+        const isSsl = configService.get<boolean>('database.ssl');
+
+        return {
+          type: 'postgres',
+          ...(url
+            ? { url }
+            : {
+                host: configService.get<string>('database.host'),
+                port: +configService.get<number>('database.port')!,
+                username: configService.get<string>('database.username'),
+                password: configService.get<string>('database.password'),
+                database: configService.get<string>('database.name'),
+              }),
+          entities: entities,
+          synchronize: true, // Don't use this option for prod mode
+          keepConnectionAlive: true,
+          timezone: 'UTC',
+          ssl: isSsl,
+          extra: isSsl
+            ? {
+                ssl: {
+                  rejectUnauthorized: false,
+                },
+              }
+            : null,
+          autoLoadEntities: true,
+        };
+      },
       inject: [ConfigService],
     }),
     UsersModule,
