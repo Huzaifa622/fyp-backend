@@ -4,7 +4,14 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
+  Query,
+  Delete,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,58 +22,68 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import {
-  BadRequestException,
-  UploadedFiles,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
 import { OnBoardingDoctorDto } from './dtos/onboarding-doctor.dto';
 import { CreateTimeSlotDto } from './dtos/create-time-slot.dto';
 import { DoctorService } from './doctor.service';
+import { Doctors } from 'src/model/doctor.entity';
 import { GetUser } from 'src/users/decorators/get-user.decorator';
 import { AdminGuard } from 'src/common/guards/admin.guard';
+import { UpdateDoctorProfileDto } from './dtos/update-doctor-profile.dto';
+import { FindDoctorQueryDto } from './dtos/find-doctor.query.dto';
+import { UpdateTimeSlotDto } from './dtos/update-time-slot.dto';
 
 @ApiTags('Doctor')
 @Controller('doctor')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
-  @Get('/:id')
+  // --- Static Routes (Must come BEFORE parameterized routes) ---
+
+  @Get('/profile/me')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a doctor by ID' })
-  @ApiResponse({ status: 200, description: 'Doctor found' })
-  @ApiResponse({ status: 404, description: 'Doctor not found' })
-  getDoctorById(@Param('id', ParseIntPipe) id: number) {
-    return this.doctorService.getDoctorById(id);
+  @ApiOperation({ summary: 'Get current doctor profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns doctor profile',
+    type: Doctors,
+  })
+  getProfile(@GetUser() user: { userId: number }) {
+    return this.doctorService.getProfile(user.userId);
   }
 
-  @Get()
+  @Patch('/profile/me')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'List all doctors' })
-  @ApiResponse({ status: 200, description: 'List of doctors' })
-  getAllDoctors() {
-    return this.doctorService.getAllDoctors();
+  @ApiOperation({ summary: 'Update current doctor profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated successfully',
+    type: Doctors,
+  })
+  updateProfile(
+    @GetUser() user: { userId: number },
+    @Body() dto: UpdateDoctorProfileDto,
+  ) {
+    return this.doctorService.updateProfile(user.userId, dto);
   }
 
   @Get('/pending')
   @ApiBearerAuth()
   @UseGuards(AdminGuard)
-  @ApiOperation({ summary: 'List all pending doctors (Admin only)' })
-  @ApiResponse({ status: 200, description: 'List of doctors' })
-  getAllPendingDoctors() {
-    return this.doctorService.getAllPendingDoctors();
+  @ApiOperation({
+    summary: 'List all pending doctors with search filters (Admin only)',
+  })
+  @ApiResponse({ status: 200, description: 'List of doctors', type: [Doctors] })
+  getAllPendingDoctors(@Query() query: FindDoctorQueryDto) {
+    return this.doctorService.getAllPendingDoctors(query);
   }
 
-  @Post('/:id/verify')
+  @Get('/slots')
   @ApiBearerAuth()
-  @UseGuards(AdminGuard)
-  @ApiOperation({ summary: 'Verify a doctor (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Doctor verified' })
-  verifyDoctor(@Param('id', ParseIntPipe) id: number) {
-    return this.doctorService.verifyDoctor(id);
+  @ApiOperation({ summary: 'Get all time slots for your doctor profile' })
+  @ApiResponse({ status: 200, description: 'Return all time slots' })
+  @ApiResponse({ status: 400, description: 'Doctor not found' })
+  getMySlots(@GetUser() user: { userId: number }) {
+    return this.doctorService.getDoctorTimeSlotsByUserId(user.userId);
   }
 
   @Post('/onboard')
@@ -90,129 +107,33 @@ export class DoctorController {
         'degree',
       ],
       properties: {
-        licenseNumber: {
-          type: 'string',
-          description: 'Doctor license number (must be unique)',
-          example: 'DOC-12345',
-        },
-        experienceYears: {
-          type: 'number',
-          description: 'Years of medical experience',
-          example: 5,
-        },
-        consultationFee: {
-          type: 'number',
-          description: 'Consultation fee in currency units',
-          example: 1500,
-        },
-        bio: {
-          type: 'string',
-          description: 'Doctor biography (optional)',
-          example: 'Experienced cardiologist specializing in heart diseases',
-        },
-        clinicAddress: {
-          type: 'string',
-          description: 'Clinic address (optional)',
-          example: '123 Medical Plaza, Karachi',
-        },
-        timeSlots: {
-          type: 'array',
-          description: 'Array of available time slots',
-          items: {
-            type: 'object',
-            properties: {
-              date: {
-                type: 'string',
-                format: 'date',
-                description: 'Date in YYYY-MM-DD format',
-                example: '2026-02-01',
-              },
-              startTime: {
-                type: 'string',
-                format: 'date-time',
-                description: 'Start time as ISO timestamp',
-                example: '2026-02-01T09:00:00.000Z',
-              },
-              endTime: {
-                type: 'string',
-                format: 'date-time',
-                description: 'End time as ISO timestamp',
-                example: '2026-02-01T17:00:00.000Z',
-              },
-            },
-          },
-        },
-        degree: {
-          type: 'string',
-          format: 'binary',
-          description: 'Degree certificate image file (required)',
-        },
-        certificate: {
-          type: 'string',
-          format: 'binary',
-          description: 'Medical certificate image file (optional)',
-        },
+        licenseNumber: { type: 'string', example: 'DOC-12345' },
+        experienceYears: { type: 'number', example: 5 },
+        consultationFee: { type: 'number', example: 1500 },
+        bio: { type: 'string', example: 'Experienced cardiologist' },
+        clinicAddress: { type: 'string', example: '123 Medical Plaza' },
+        timeSlots: { type: 'array', items: { type: 'object' } },
+        degree: { type: 'string', format: 'binary' },
+        certificate: { type: 'string', format: 'binary' },
       },
     },
   })
   @ApiResponse({ status: 201, description: 'Doctor successfully onboarded' })
-  @ApiResponse({ status: 400, description: 'Doctor already onboarded' })
   onboardDoctor(
-    @GetUser()
-    user: {
-      email: string;
-      userId: number;
-      firstName: string;
-      lastName: string;
-    },
+    @GetUser() user: any,
     @Body() dto: OnBoardingDoctorDto,
-    @UploadedFiles()
-    files: {
-      degree?: Express.Multer.File[];
-      certificate?: Express.Multer.File[];
-    },
+    @UploadedFiles() files: any,
   ) {
     if (!files?.degree?.[0]) {
       throw new BadRequestException('Degree image is required');
     }
-
     return this.doctorService.onboard(user.userId, dto, files);
   }
 
   @Post('/slots')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add time slots to your doctor profile' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['date', 'startTime', 'endTime'],
-      properties: {
-        date: {
-          type: 'string',
-          format: 'date',
-          description: 'Date in YYYY-MM-DD format',
-          example: '2026-02-01',
-        },
-        startTime: {
-          type: 'string',
-          format: 'date-time',
-          description: 'Start time as ISO timestamp',
-          example: '2026-02-01T09:00:00.000Z',
-        },
-        endTime: {
-          type: 'string',
-          format: 'date-time',
-          description: 'End time as ISO timestamp',
-          example: '2026-02-01T17:00:00.000Z',
-        },
-      },
-    },
-  })
   @ApiResponse({ status: 201, description: 'Time slot added successfully' })
-  @ApiResponse({
-    status: 400,
-    description: 'Doctor not onboarded or invalid data',
-  })
   createTimeSlot(
     @GetUser() user: { userId: number },
     @Body() dto: CreateTimeSlotDto,
@@ -220,12 +141,61 @@ export class DoctorController {
     return this.doctorService.addTimeSlots(user.userId, dto);
   }
 
+  // --- Parameterized Routes ---
+
+  @Get('/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a doctor by ID' })
+  @ApiResponse({ status: 200, description: 'Doctor found' })
+  getDoctorById(@Param('id', ParseIntPipe) id: number) {
+    return this.doctorService.getDoctorById(id);
+  }
+
+  @Get()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all doctors with search filters' })
+  @ApiResponse({ status: 200, description: 'List of doctors', type: [Doctors] })
+  getAllDoctors(@Query() query: FindDoctorQueryDto) {
+    return this.doctorService.getAllDoctors(query);
+  }
+
+  @Post('/:id/verify')
+  @ApiBearerAuth()
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Verify a doctor (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Doctor verified' })
+  verifyDoctor(@Param('id', ParseIntPipe) id: number) {
+    return this.doctorService.verifyDoctor(id);
+  }
+
   @Get('/:id/slots')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all time slots for your doctor profile' })
+  @ApiOperation({ summary: 'Get all time slots for a specific doctor profile' })
   @ApiResponse({ status: 200, description: 'Return all time slots' })
-  @ApiResponse({ status: 400, description: 'Doctor not onboarded' })
-  getDoctorTimeSlots(@GetUser() user: { userId: number }) {
-    return this.doctorService.getDoctorTimeSlots(user.userId);
+  getDoctorTimeSlots(@Param('id', ParseIntPipe) id: number) {
+    return this.doctorService.getDoctorTimeSlots(id);
+  }
+
+  @Delete('/slots/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a specific time slot' })
+  @ApiResponse({ status: 200, description: 'Time slot deleted' })
+  deleteTimeSlot(
+    @GetUser() user: { userId: number },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.doctorService.deleteTimeSlot(user.userId, id);
+  }
+
+  @Patch('/slots/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a specific time slot' })
+  @ApiResponse({ status: 200, description: 'Time slot updated' })
+  updateTimeSlot(
+    @GetUser() user: { userId: number },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTimeSlotDto,
+  ) {
+    return this.doctorService.updateTimeSlot(user.userId, id, dto);
   }
 }

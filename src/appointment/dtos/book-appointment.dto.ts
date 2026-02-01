@@ -8,10 +8,10 @@ export class BookAppointmentDto {
   doctorId: number;
 
   @ApiProperty({
-    example: '2024-01-01T10:00:00Z',
-    description: 'Date and time of appointment',
+    example: 123,
+    description: 'ID of the specific time slot',
   })
-  @IsDateString()
+  @IsNumber()
   @IsNotEmpty()
-  date: string;
+  slotId: number;
 }

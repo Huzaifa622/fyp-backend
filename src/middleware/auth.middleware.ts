@@ -12,38 +12,38 @@ export class AuthMiddleware implements NestMiddleware {
   constructor(private configService: ConfigService) {}
   use(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers['authorization'];
-    console.log(`[AuthMiddleware] ${req.method} ${req.url}`);
+    // console.log(`[AuthMiddleware] ${req.method} ${req.url}`);
 
     if (req.method === 'OPTIONS') {
       return next();
     }
 
-    console.log(
-      `[AuthMiddleware] Authorization Header: ${authHeader ? 'Present' : 'Missing'}`,
-    );
-    console.log(`[AuthMiddleware] Full Headers:`, Object.keys(req.headers));
+    // console.log(
+    //   `[AuthMiddleware] Authorization Header: ${authHeader ? 'Present' : 'Missing'}`,
+    // );
+    // console.log(`[AuthMiddleware] Full Headers:`, Object.keys(req.headers));
 
     if (!authHeader) {
       throw new UnauthorizedException('Authorization header missing');
     }
 
     const [type, token] = authHeader.split(' ');
-    console.log(
-      `[AuthMiddleware] Token Type: ${type}, Token Length: ${token?.length}`,
-    );
+    // console.log(
+    //   `[AuthMiddleware] Token Type: ${type}, Token Length: ${token?.length}`,
+    // );
 
     if (type !== 'Bearer' || !token) {
-      console.log('[AuthMiddleware] Invalid format');
+      // console.log('[AuthMiddleware] Invalid format');
       throw new UnauthorizedException('Invalid authorization format');
     }
 
     try {
       const secret = this.configService.get<string>('SECRET');
-      console.log(`[AuthMiddleware] Secret configured: ${!!secret}`);
+      // console.log(`[AuthMiddleware] Secret configured: ${!!secret}`);
 
       const decoded = jwt.verify(token, secret as string);
 
-      console.log('[AuthMiddleware] Verification Successful', decoded);
+      // console.log('[AuthMiddleware] Verification Successful', decoded);
       req['user'] = decoded;
 
       next();

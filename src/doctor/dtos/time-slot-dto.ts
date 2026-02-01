@@ -1,10 +1,12 @@
-import { IsDateString, IsNotEmpty } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class DoctorTimeSlotDto {
-  @IsNotEmpty()
-  @IsDateString()
-  date: string; // YYYY-MM-DD
-
+export class TimeRangeDto {
   @IsNotEmpty()
   @IsDateString()
   startTime: string; // ISO timestamp
@@ -12,4 +14,15 @@ export class DoctorTimeSlotDto {
   @IsNotEmpty()
   @IsDateString()
   endTime: string; // ISO timestamp
+}
+
+export class DoctorTimeSlotDto {
+  @IsNotEmpty()
+  @IsDateString()
+  date: string; // YYYY-MM-DD
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
+  timeRanges: TimeRangeDto[];
 }

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -84,7 +85,7 @@ export class UsersService {
 
     if (!user.isEmailVerified) {
       await this.mailService.sendVerification(user.email, resendToken);
-      throw new UnauthorizedException(
+      throw new ForbiddenException(
         'Please verify your email before logging in',
       );
     }

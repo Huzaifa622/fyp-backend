@@ -35,7 +35,7 @@ export class HfService {
           content: [
             {
               type: 'text',
-              text: `Patient Description: ${description}. Please analyze the attached skin condition images and provide a detailed report. 
+              text: `Patient Description: ${description}. Please analyze the attached skin condition images and provide a detailed report and respond using ONLY plain text. 
                 
                 Requirements:
                 1. Result Limit: Approximately 300 words.
@@ -43,7 +43,20 @@ export class HfService {
                   - Disease Name: [Name]
                   - Confidence Score in %
                   - Detailed Report: [Diagnosis, Severity, and Recommendations]
-                3. Strictly maintain professional medical tone.`,
+                3. Strictly maintain professional medical tone.
+                4. Do not include any additional information or formatting.
+                STRICT OUTPUT RULES (MANDATORY):
+- No markdown symbols (**, ##, -, *, _)
+- No bullet points
+- No line breaks or newline characters
+- Use a single continuous paragraph
+- Use ":" only for field labels
+
+EXACT OUTPUT FORMAT (DO NOT DEVIATE):
+Disease Name: <text>. Confidence Score: <percentage>. Detailed Report: <text>.
+
+If you violate formatting rules, the response is invalid.
+                `,
             },
             ...imageUrls.map((img) => ({
               type: 'image_url',
@@ -75,11 +88,12 @@ export class HfService {
         JSON.stringify(response.data);
 
       // Parse fields using Regex
-      const diseaseMatch = content.match(/Disease Name:\s*(.+)/i);
-      const confidenceMatch = content.match(/Confidence Score:\s*(.+)/i);
+      const diseaseMatch = content.match(/Disease Name:\s*([^\.]+)/i);
+      const confidenceMatch = content.match(/Confidence Score:\s*([\d.]+%)/i);
+      const reportMatch = content.match(/Detailed Report:\s*(.+)$/i);
 
       return {
-        content,
+        content: reportMatch ? reportMatch[1].trim() : 'Unknown',
         diseaseName: diseaseMatch ? diseaseMatch[1].trim() : 'Unknown',
         confidenceScore: confidenceMatch
           ? confidenceMatch[1].trim()

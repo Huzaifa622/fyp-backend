@@ -27,8 +27,7 @@ export class AppointmentService {
   ) {}
 
   async bookAppointment(userId: number, dto: BookAppointmentDto) {
-    const { doctorId, date } = dto;
-    const appointmentDate = new Date(date);
+    const { doctorId, slotId } = dto;
 
     // 1. Validate Patient
     const patient = await this.patientRepo.findOne({
@@ -48,82 +47,91 @@ export class AppointmentService {
       throw new NotFoundException('Doctor not found');
     }
 
-    // 3. check availability
-    // This part assumes we have exact time slot matching or we just check if doctor has a slot.
-    // However, the prompt implies "look for available time appointment".
-    // For simplicity, we'll check if there is an overlapping appointment or if it matches a valid slot.
-    // Assuming the DTO date matches a slot exactly or we just check availability.
+    // 3. Validate Time Slot
+    const timeSlot = await this.timeSlotRepo.findOne({
+      where: {
+        id: slotId,
+        doctor: { id: doctorId },
+      },
+    });
 
-    // Check if slot exists in doctor's definition
-    // AND check if it's already booked.
+    if (!timeSlot) {
+      throw new NotFoundException('Time slot not found for this doctor');
+    }
 
-    // Simple check: Is this time already booked for this doctor?
-    // Check for existing appointment
+    if (timeSlot.isBooked) {
+      throw new BadRequestException('This time slot is already booked');
+    }
+
+    // Check for existing appointment for this slot (backup check)
     const existingAppointment = await this.appointmentRepo.findOne({
       where: {
-        doctor: { id: doctorId },
-        appointmentDate: appointmentDate,
+        slot: { id: slotId },
         status: AppointmentStatus.CONFIRMED,
       },
     });
 
     if (existingAppointment) {
-      throw new BadRequestException('This time slot is already booked');
+      throw new BadRequestException(
+        'An appointment already exists for this slot',
+      );
     }
 
-    // Mark the TimeSlot as booked
-    // Assuming appointmentDate matches key properties of TimeSlot (e.g. startTime)
-    // Note: exact match required.
-    const timeSlot = await this.timeSlotRepo.findOne({
+    // New: Check for patient overlap (don't let patient double book themselves)
+    const patientOverlap = await this.appointmentRepo.findOne({
       where: {
-        doctor: { id: doctorId },
-        startTime: appointmentDate, // Assuming DTO date is the full start timestamp
+        patient: { id: patient.id },
+        appointmentDate: timeSlot.date,
+        status: AppointmentStatus.CONFIRMED,
       },
+      relations: ['slot'],
     });
 
-    if (timeSlot) {
-      if (timeSlot.isBooked) {
-        throw new BadRequestException('Time slot is already booked');
+    if (patientOverlap) {
+      // Logic for overlap check: if they have a confirmed appt on same day, check if times overlap
+      // Actually, since slots are discrete, we can just check if they are trying to book the same slot
+      // Or if their existing slot's time ranges overlap.
+      // Easiest check for now: same time slot or overlapping time ranges on that day.
+      const s1 = new Date(timeSlot.startTime);
+      const e1 = new Date(timeSlot.endTime);
+      const s2 = new Date(patientOverlap.slot.startTime);
+      const e2 = new Date(patientOverlap.slot.endTime);
+
+      if (s1 < e2 && s2 < e1) {
+        throw new BadRequestException(
+          `You already have a confirmed appointment at this time (${this.formatTime(s2)} - ${this.formatTime(e2)})`,
+        );
       }
-      timeSlot.isBooked = true;
-      await this.timeSlotRepo.save(timeSlot);
-    } else {
-      // Optional: Enforce that an appointment MUST correspond to a valid slot?
-      // The user prompt implies "available time slots of doctor... while take appointment... booked become true".
-      // So likely we should enforce it.
-      // throw new BadRequestException('Invalid time slot');
-      // For now, I'll just warn or proceed if logic allows ad-hoc (but typically slots are strict).
-      // I'll leave it as non-strict or just update if found, to avoiding breaking rigidness if legacy matches didn't strictly align.
-      // But actually, for "booked become true", we must find it.
-      // I will assume slot MUST exist.
-      throw new BadRequestException('Invalid or unavailable time slot');
     }
 
     // 4. Create Appointment
     const appointment = this.appointmentRepo.create({
       doctor,
       patient,
-      appointmentDate,
-      status: AppointmentStatus.CONFIRMED, // Auto-confirm for now? Or Pending? Prompt says "email was send... confirm".
+      slot: timeSlot,
+      appointmentDate: timeSlot.date,
+      status: AppointmentStatus.CONFIRMED,
     });
+
+    // Mark slot as booked
+    timeSlot.isBooked = true;
+    await this.timeSlotRepo.save(timeSlot);
 
     const savedAppointment = await this.appointmentRepo.save(appointment);
 
     // 5. Send Emails
-    // To Patient
     await this.mailService.sendAppointmentConfirmation(
       patient.user.email,
-      patient.user.firstName + ' ' + patient.user.lastName || 'Patient', // Assuming name exists
-      doctor.user.firstName + ' ' + doctor.user.lastName || 'Doctor',
-      appointmentDate,
+      `${patient.user.firstName} ${patient.user.lastName}`,
+      `${doctor.user.firstName} ${doctor.user.lastName}`,
+      timeSlot.startTime,
     );
 
-    // To Doctor
     await this.mailService.sendDoctorNotification(
       doctor.user.email,
-      doctor.user.firstName + ' ' + doctor.user.lastName || 'Doctor',
-      patient.user.firstName + ' ' + patient.user.lastName || 'Patient',
-      appointmentDate,
+      `${doctor.user.firstName} ${doctor.user.lastName}`,
+      `${patient.user.firstName} ${patient.user.lastName}`,
+      timeSlot.startTime,
     );
 
     return savedAppointment;
@@ -132,7 +140,7 @@ export class AppointmentService {
   async cancelAppointment(userId: number, appointmentId: number) {
     const appointment = await this.appointmentRepo.findOne({
       where: { id: appointmentId },
-      relations: ['patient', 'patient.user', 'doctor'],
+      relations: ['patient', 'patient.user', 'doctor', 'slot'],
     });
 
     if (!appointment) {
@@ -140,7 +148,10 @@ export class AppointmentService {
     }
 
     // Verify ownership
-    if (appointment.patient.user.id != userId) {
+    const isPatient = appointment.patient.user.id === userId;
+    const isDoctor = appointment.doctor.user.id === userId;
+
+    if (!isPatient && !isDoctor) {
       throw new BadRequestException(
         'You are not authorized to cancel this appointment',
       );
@@ -154,19 +165,46 @@ export class AppointmentService {
     await this.appointmentRepo.save(appointment);
 
     // Free up the time slot
-    const timeSlot = await this.timeSlotRepo.findOne({
-      where: {
-        doctor: { id: appointment.doctor.id },
-        startTime: appointment.appointmentDate,
-      },
-    });
-
-    if (timeSlot) {
-      timeSlot.isBooked = false;
-      await this.timeSlotRepo.save(timeSlot);
+    if (appointment.slot) {
+      const timeSlot = await this.timeSlotRepo.findOne({
+        where: { id: appointment.slot.id },
+      });
+      if (timeSlot) {
+        timeSlot.isBooked = false;
+        await this.timeSlotRepo.save(timeSlot);
+      }
     }
 
     return { message: 'Appointment cancelled successfully' };
+  }
+
+  async completeAppointment(userId: number, appointmentId: number) {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['doctor', 'doctor.user'],
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    // Verify it's the doctor completing it
+    if (appointment.doctor.user.id !== userId) {
+      throw new BadRequestException(
+        'You are not authorized to complete this appointment',
+      );
+    }
+
+    if (appointment.status === AppointmentStatus.CANCELLED) {
+      throw new BadRequestException('Cannot complete a cancelled appointment');
+    }
+
+    if (appointment.status === AppointmentStatus.COMPLETED) {
+      throw new BadRequestException('Appointment is already completed');
+    }
+
+    appointment.status = AppointmentStatus.COMPLETED;
+    return this.appointmentRepo.save(appointment);
   }
 
   async getMyAppointments(userId: number) {
@@ -182,8 +220,32 @@ export class AppointmentService {
 
     return this.appointmentRepo.find({
       where: { patient: { id: patient.id } },
-      relations: ['doctor', 'doctor.user'],
+      relations: ['doctor', 'doctor.user', 'slot'],
       order: { appointmentDate: 'DESC' },
+    });
+  }
+
+  async getDoctorAppointments(userId: number) {
+    const doctor = await this.doctorRepo.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!doctor) {
+      return [];
+    }
+
+    return this.appointmentRepo.find({
+      where: { doctor: { id: doctor.id } },
+      relations: ['patient', 'patient.user', 'slot'],
+      order: { appointmentDate: 'DESC' },
+    });
+  }
+
+  private formatTime(date: Date): string {
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
     });
   }
 }

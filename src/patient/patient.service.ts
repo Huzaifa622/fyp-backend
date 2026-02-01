@@ -15,6 +15,8 @@ import { CreatePatientProfileDto } from './dtos/create-patient-profile.dto';
 
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
+import { UpdatePatientProfileDto } from './dtos/update-patient-profile.dto';
+
 @Injectable()
 export class PatientService {
   private readonly logger = new Logger(PatientService.name);
@@ -30,27 +32,14 @@ export class PatientService {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  private async ensurePatientOnboarded(userId: number) {
-    const patient = await this.patientRepo.findOne({
-      where: { user: { id: userId } },
-    });
-
-    if (!patient) {
-      throw new NotFoundException(
-        'You must complete patient onboarding before accessing this feature',
-      );
-    }
-
-    return patient;
-  }
-
   async generateAIReport(
     userId: number,
     dto: CreateAIReportDto,
     images: Array<Express.Multer.File>,
   ) {
-    // Ensure patient is onboarded before generating report
-    const patient = await this.ensurePatientOnboarded(userId);
+    const patient = await this.patientRepo.findOne({
+      where: { user: { id: userId } },
+    });
 
     const uploadPromises = images.map((img) =>
       this.cloudinaryService.uploadFile(img),
@@ -72,7 +61,7 @@ export class PatientService {
       confidenceScore,
       description: dto.description,
       imagePaths: imageUrls,
-      patient,
+      patient: patient!, // Middleware ensures this exists
     });
 
     await this.reportRepo.save(report);
@@ -103,10 +92,50 @@ export class PatientService {
     return this.patientRepo.save(patient);
   }
 
+  async getProfile(userId: number) {
+    const patient = await this.patientRepo.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Patient profile not found');
+    }
+
+    return patient;
+  }
+
+  async updateProfile(userId: number, dto: UpdatePatientProfileDto) {
+    const patient = await this.patientRepo.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Patient profile not found');
+    }
+
+    // Update user fields
+    if (dto.firstName) patient.user.firstName = dto.firstName;
+    if (dto.lastName) patient.user.lastName = dto.lastName;
+    if (dto.avatar) patient.user.avatar = dto.avatar;
+    await this.userRepo.save(patient.user);
+
+    // Update patient fields
+    if (dto.dateOfBirth) patient.dateOfBirth = new Date(dto.dateOfBirth);
+    if (dto.gender) patient.gender = dto.gender;
+    if (dto.bloodGroup) patient.bloodGroup = dto.bloodGroup;
+    if (dto.address) patient.address = dto.address;
+
+    return this.patientRepo.save(patient);
+  }
+
   async getMyReports(userId: number) {
-    const patient = await this.ensurePatientOnboarded(userId);
+    const patient = await this.patientRepo.findOne({
+      where: { user: { id: userId } },
+    });
     return this.reportRepo.find({
-      where: { patient: { id: patient.id } },
+      where: { patient: { id: patient!.id } },
       order: { createdAt: 'DESC' },
     });
   }

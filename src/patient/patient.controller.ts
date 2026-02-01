@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   UploadedFiles,
@@ -18,14 +19,13 @@ import {
 } from '@nestjs/swagger';
 import { CreateAIReportDto } from './dtos/create-ai-report.dto';
 import { PatientService } from './patient.service';
-// Helper for file naming (optional, but good for avoiding collisions/overwrites if default behavior isn't enough)
-// Removed diskStorage to use MemoryStorage for Cloudinary
-
 import { CreatePatientProfileDto } from './dtos/create-patient-profile.dto';
+import { UpdatePatientProfileDto } from './dtos/update-patient-profile.dto';
+import { Patients } from 'src/model/patient.entity';
 import { GetUser } from 'src/users/decorators/get-user.decorator';
 
 @ApiTags('Patient')
-@ApiBearerAuth() // Assuming global auth or applied via middleware
+@ApiBearerAuth()
 @Controller('patient')
 export class PatientController {
   constructor(private readonly patientService: PatientService) {}
@@ -77,5 +77,30 @@ export class PatientController {
   @ApiResponse({ status: 404, description: 'Patient not onboarded' })
   async getMyReports(@GetUser() user: { userId: number }) {
     return this.patientService.getMyReports(user.userId);
+  }
+
+  @Get('profile/me')
+  @ApiOperation({ summary: 'Get current patient profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns patient profile',
+    type: Patients,
+  })
+  async getProfile(@GetUser() user: { userId: number }) {
+    return this.patientService.getProfile(user.userId);
+  }
+
+  @Patch('profile/me')
+  @ApiOperation({ summary: 'Update current patient profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated successfully',
+    type: Patients,
+  })
+  async updateProfile(
+    @GetUser() user: { userId: number },
+    @Body() dto: UpdatePatientProfileDto,
+  ) {
+    return this.patientService.updateProfile(user.userId, dto);
   }
 }
