@@ -17,6 +17,7 @@ import { Doctors } from 'src/model/doctor.entity';
 import { Patients } from 'src/model/patient.entity';
 import { TimeSlots } from 'src/model/time-slot.entity';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
+import { DoctorVerifiedGuard } from './guards/doctor-verified.guard';
 
 @Module({
   imports: [

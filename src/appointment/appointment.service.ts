@@ -88,10 +88,6 @@ export class AppointmentService {
     });
 
     if (patientOverlap) {
-      // Logic for overlap check: if they have a confirmed appt on same day, check if times overlap
-      // Actually, since slots are discrete, we can just check if they are trying to book the same slot
-      // Or if their existing slot's time ranges overlap.
-      // Easiest check for now: same time slot or overlapping time ranges on that day.
       const s1 = new Date(timeSlot.startTime);
       const e1 = new Date(timeSlot.endTime);
       const s2 = new Date(patientOverlap.slot.startTime);
@@ -147,7 +143,6 @@ export class AppointmentService {
       throw new NotFoundException('Appointment not found');
     }
 
-    // Verify ownership
     const isPatient = appointment.patient.user.id === userId;
     const isDoctor = appointment.doctor.user.id === userId;
 
@@ -159,6 +154,17 @@ export class AppointmentService {
 
     if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new BadRequestException('Appointment is already cancelled');
+    }
+
+    if (appointment.slot && appointment.slot.startTime) {
+      const now = new Date();
+      const slotStart = new Date(appointment.slot.startTime);
+      const oneHourBefore = new Date(slotStart.getTime() - 60 * 60 * 1000);
+      if (now > oneHourBefore) {
+        throw new BadRequestException(
+          'Cannot cancel appointment less than 1 hour before start time',
+        );
+      }
     }
 
     appointment.status = AppointmentStatus.CANCELLED;
@@ -181,7 +187,7 @@ export class AppointmentService {
   async completeAppointment(userId: number, appointmentId: number) {
     const appointment = await this.appointmentRepo.findOne({
       where: { id: appointmentId },
-      relations: ['doctor', 'doctor.user'],
+      relations: ['doctor', 'doctor.user', 'slot'],
     });
 
     if (!appointment) {
@@ -201,6 +207,17 @@ export class AppointmentService {
 
     if (appointment.status === AppointmentStatus.COMPLETED) {
       throw new BadRequestException('Appointment is already completed');
+    }
+
+    // Allow marking completed only after the appointment slot end time
+    if (appointment.slot && appointment.slot.endTime) {
+      const now = new Date();
+      const slotEnd = new Date(appointment.slot.endTime);
+      if (now < slotEnd) {
+        throw new BadRequestException(
+          'Cannot mark appointment as completed before it has finished',
+        );
+      }
     }
 
     appointment.status = AppointmentStatus.COMPLETED;

@@ -57,4 +57,12 @@ export class UsersController {
         return this.userService.login(loginData)
     }
 
+    @ApiBearerAuth()
+    @ApiOperation({ summary: "Logout", description: "User logout" })
+    @Post('logout')
+    @ApiResponse({ status: 200, description: "user logout successfully" })
+    async logout(@GetUser() user: { userId: number }) {
+        return this.userService.logout(user.userId);
+    }
+
 }

@@ -20,7 +20,7 @@ export class MailService {
   async sendVerification(email: string, token: string) {
     const backend =
       this.config.get('BACKEND_URL') ?? this.config.get('APP_URL');
-    const verifyUrl = `${backend}/users/verify?token=${token}`;
+    const verifyUrl = `${backend}/verify-email?token=${token}`;
     const from = this.config.get<string>('SENDGRID_FROM_EMAIL');
 
     if (!from) {

@@ -37,7 +37,7 @@ import { UpdateTimeSlotDto } from './dtos/update-time-slot.dto';
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
-  // --- Static Routes (Must come BEFORE parameterized routes) ---
+ 
 
   @Get('/profile/me')
   @ApiBearerAuth()

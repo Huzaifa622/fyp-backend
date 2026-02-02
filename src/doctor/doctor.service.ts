@@ -258,6 +258,11 @@ export class DoctorService {
     const startTime = slot.startTime;
     const endTime = slot.endTime;
 
+    const now = new Date();
+    if (startTime && startTime <= now) {
+      throw new BadRequestException('Cannot set a start time in the past');
+    }
+
     const allSlots = await this.timeSlotRepo.find({
       where: { doctor: { id: doctor.id }, date: slot.date },
     });
@@ -293,6 +298,25 @@ export class DoctorService {
       }
       seenDates.add(dateStr);
 
+      // Disallow adding slots for past dates
+      const today = new Date();
+      const todayDateOnly = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      );
+      const slotDateObj = new Date(slot.date);
+      const slotDateOnly = new Date(
+        slotDateObj.getFullYear(),
+        slotDateObj.getMonth(),
+        slotDateObj.getDate(),
+      );
+      if (slotDateOnly < todayDateOnly) {
+        throw new BadRequestException(
+          `Cannot add time slots for past date: ${dateStr}`,
+        );
+      }
+
       for (let i = 0; i < slot.timeRanges.length; i++) {
         const range1 = slot.timeRanges[i];
         const s1 = new Date(range1.startTime);
@@ -301,6 +325,14 @@ export class DoctorService {
         if (s1 >= e1) {
           throw new BadRequestException(
             `Invalid time range on ${dateStr}: Start time must be before end time.`,
+          );
+        }
+
+        // Disallow adding a time range that starts in the past for today's date
+        const nowTime = new Date();
+        if (slotDateOnly.getTime() === todayDateOnly.getTime() && s1 <= nowTime) {
+          throw new BadRequestException(
+            `Cannot add a time range starting in the past on ${dateStr}`,
           );
         }
 

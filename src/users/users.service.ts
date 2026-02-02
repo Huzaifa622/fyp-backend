@@ -212,4 +212,15 @@ export class UsersService {
       { expiresIn: '1h' },
     );
   }
+
+  async logout(userId: number) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return {
+      ok: true,
+      message: 'Logged out successfully. Please remove the token from your client.',
+    };
+  }
 }
