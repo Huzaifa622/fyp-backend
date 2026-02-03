@@ -9,6 +9,7 @@ import {
   Query,
   Delete,
   UploadedFiles,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
   BadRequestException,
@@ -21,7 +22,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { OnBoardingDoctorDto } from './dtos/onboarding-doctor.dto';
 import { CreateTimeSlotDto } from './dtos/create-time-slot.dto';
 import { DoctorService } from './doctor.service';
@@ -54,16 +55,19 @@ export class DoctorController {
   @Patch('/profile/me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current doctor profile' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponse({
     status: 200,
     description: 'Profile updated successfully',
     type: Doctors,
   })
+  @UseInterceptors(FileInterceptor('avatar'))
   updateProfile(
     @GetUser() user: { userId: number },
     @Body() dto: UpdateDoctorProfileDto,
+    @UploadedFile() avatar?: Express.Multer.File,
   ) {
-    return this.doctorService.updateProfile(user.userId, dto);
+    return this.doctorService.updateProfile(user.userId, dto, avatar);
   }
 
   @Get('/pending')

@@ -105,7 +105,7 @@ export class PatientService {
     return patient;
   }
 
-  async updateProfile(userId: number, dto: UpdatePatientProfileDto) {
+  async updateProfile(userId: number, dto: UpdatePatientProfileDto, avatar?: Express.Multer.File) {
     const patient = await this.patientRepo.findOne({
       where: { user: { id: userId } },
       relations: ['user'],
@@ -116,9 +116,12 @@ export class PatientService {
     }
 
     // Update user fields
+    if (avatar) {
+      const uploadResult = await this.cloudinaryService.uploadFile(avatar);
+      patient.user.avatar = (uploadResult as any).secure_url;
+    }
     if (dto.firstName) patient.user.firstName = dto.firstName;
     if (dto.lastName) patient.user.lastName = dto.lastName;
-    if (dto.avatar) patient.user.avatar = dto.avatar;
     await this.userRepo.save(patient.user);
 
     // Update patient fields

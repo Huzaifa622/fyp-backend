@@ -6,9 +6,10 @@ import {
   Post,
   Req,
   UploadedFiles,
+  UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
@@ -92,15 +93,18 @@ export class PatientController {
 
   @Patch('profile/me')
   @ApiOperation({ summary: 'Update current patient profile' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponse({
     status: 200,
     description: 'Profile updated successfully',
     type: Patients,
   })
+  @UseInterceptors(FileInterceptor('avatar'))
   async updateProfile(
     @GetUser() user: { userId: number },
     @Body() dto: UpdatePatientProfileDto,
+    @UploadedFile() avatar?: Express.Multer.File,
   ) {
-    return this.patientService.updateProfile(user.userId, dto);
+    return this.patientService.updateProfile(user.userId, dto, avatar);
   }
 }

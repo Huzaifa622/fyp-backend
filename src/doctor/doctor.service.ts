@@ -145,7 +145,7 @@ export class DoctorService {
     return doctor;
   }
 
-  async updateProfile(userId: number, dto: UpdateDoctorProfileDto) {
+  async updateProfile(userId: number, dto: UpdateDoctorProfileDto, avatar?: Express.Multer.File) {
     const doctor = await this.doctorRepo.findOne({
       where: { user: { id: userId } },
       relations: ['user'],
@@ -155,9 +155,13 @@ export class DoctorService {
       throw new BadRequestException('Doctor profile not found');
     }
 
+    if (avatar) {
+      const uploadResult = await this.cloudinaryService.uploadFile(avatar);
+      doctor.user.avatar = (uploadResult as any).secure_url;
+    }
+
     if (dto.firstName) doctor.user.firstName = dto.firstName;
     if (dto.lastName) doctor.user.lastName = dto.lastName;
-    if (dto.avatar) doctor.user.avatar = dto.avatar;
     await this.userRepo.save(doctor.user);
 
     if (dto.bio) doctor.bio = dto.bio;

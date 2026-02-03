@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdatePatientProfileDto {
@@ -31,9 +31,4 @@ export class UpdatePatientProfileDto {
   @IsOptional()
   @IsString()
   lastName?: string;
-
-  @ApiPropertyOptional({ example: 'https://example.com/avatar.png' })
-  @IsOptional()
-  @IsUrl()
-  avatar?: string;
 }
